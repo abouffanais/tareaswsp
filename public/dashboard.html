@@ -21,16 +21,21 @@
     font-family:'Helvetica Neue', Arial, sans-serif;
     background:var(--cream);
     color:var(--charcoal);
+    height:100vh;
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
   }
   header{
     background:var(--charcoal);
     color:var(--cream);
-    padding:20px 28px;
+    padding:16px 28px;
     display:flex;
     justify-content:space-between;
     align-items:center;
     flex-wrap:wrap;
     gap:12px;
+    flex-shrink:0;
   }
   header h1{
     margin:0;
@@ -49,6 +54,7 @@
     padding:10px 28px;
     font-size:13px;
     display:none;
+    flex-shrink:0;
   }
   #config input{
     padding:6px 8px; border:1px solid #ccc; border-radius:4px; width:340px; font-size:13px;
@@ -57,38 +63,71 @@
     padding:6px 14px; background:var(--charcoal); color:#fff; border:none; border-radius:4px; cursor:pointer;
   }
 
-  main{ padding:24px 28px; }
+  .layout{ flex:1; display:flex; min-height:0; }
 
-  .board{
-    display:grid;
-    grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));
-    gap:18px;
+  nav.sidebar{
+    width:240px;
+    flex-shrink:0;
+    background:#ffffff;
+    border-right:1px solid #e3e1d6;
+    overflow-y:auto;
+    padding:12px 0;
   }
-
-  .grupo-col{
-    background:var(--card);
-    border-radius:10px;
-    padding:14px;
-    box-shadow:0 1px 3px rgba(0,0,0,0.08);
-  }
-  .grupo-col h2{
-    font-size:14px;
-    text-transform:uppercase;
-    letter-spacing:0.5px;
-    margin:0 0 12px 0;
-    padding-bottom:8px;
-    border-bottom:2px solid var(--gold);
+  nav.sidebar .nav-item{
     display:flex;
     justify-content:space-between;
+    align-items:center;
+    padding:11px 20px;
+    font-size:13px;
+    font-weight:600;
+    color:var(--charcoal);
+    cursor:pointer;
+    border-left:3px solid transparent;
   }
-  .grupo-col h2 small{ color:var(--gray); font-weight:400; text-transform:none; }
+  nav.sidebar .nav-item:hover{ background:#f7f6f0; }
+  nav.sidebar .nav-item.active{
+    background:#f7f0d8;
+    border-left-color:var(--gold);
+    color:var(--charcoal);
+  }
+  nav.sidebar .nav-item .count{
+    background:var(--charcoal);
+    color:var(--cream);
+    font-size:11px;
+    font-weight:700;
+    padding:1px 7px;
+    border-radius:20px;
+  }
+  nav.sidebar .nav-item.active .count{ background:var(--gold); color:var(--charcoal); }
+  nav.sidebar .nav-item .count.has-atraso{ background:var(--red); color:#fff; }
+
+  main{
+    flex:1;
+    overflow-y:auto;
+    padding:24px 28px;
+  }
+
+  .mundo-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom:16px;
+  }
+  .mundo-header h2{
+    font-size:18px;
+    margin:0;
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+  }
+  .mundo-header .mundo-sub{ font-size:12px; color:var(--gray); }
+
+  .cards-list{ display:flex; flex-direction:column; gap:10px; max-width:760px; }
 
   .tarea-card{
     border:1px solid #e8e6dd;
     border-left:4px solid var(--gray);
-    border-radius:6px;
-    padding:10px 12px;
-    margin-bottom:10px;
+    border-radius:8px;
+    padding:14px 16px;
     font-size:13px;
     background:#fff;
   }
@@ -99,26 +138,30 @@
   .tarea-card.atrasada{ background:#fdeeee; }
 
   .tarea-card .top-row{
-    display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:6px;
+    display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:8px;
   }
-  .tarea-card .titulo{ font-weight:600; line-height:1.3; }
+  .tarea-card .titulo{ font-weight:600; line-height:1.35; font-size:14px; }
   .badge{
-    font-size:10px; padding:2px 7px; border-radius:20px; color:#fff; white-space:nowrap; font-weight:600;
+    font-size:10px; padding:3px 9px; border-radius:20px; color:#fff; white-space:nowrap; font-weight:600;
   }
   .badge.Urgente{ background:var(--red); }
   .badge.Alta{ background:var(--orange); }
   .badge.Media{ background:var(--gold); }
   .badge.Baja{ background:var(--green); }
 
-  .meta{ display:flex; justify-content:space-between; font-size:11px; color:var(--gray); margin-top:6px; }
+  .meta{ display:flex; gap:14px; align-items:center; font-size:11.5px; color:var(--gray); margin-top:8px; flex-wrap:wrap; }
   .meta .atraso-tag{ color:var(--red); font-weight:700; }
+  .meta .dias-tag{
+    background:#efeee6; padding:2px 8px; border-radius:20px; font-weight:600; color:var(--charcoal);
+  }
+  .meta .dias-tag.dias-alerta{ background:#f7dede; color:var(--red); }
 
   select.estado-select{
-    margin-top:8px; width:100%; font-size:12px; padding:4px; border-radius:4px; border:1px solid #ddd;
+    margin-top:10px; width:180px; font-size:12px; padding:5px; border-radius:4px; border:1px solid #ddd;
   }
 
   .empty{ color:var(--gray); font-size:12px; font-style:italic; }
-  footer{ text-align:center; padding:14px; font-size:11px; color:var(--gray); }
+  footer{ text-align:center; padding:8px; font-size:11px; color:var(--gray); flex-shrink:0; background:var(--cream); }
 </style>
 </head>
 <body>
@@ -139,9 +182,12 @@
   <button onclick="guardarUrl()">Guardar</button>
 </div>
 
-<main>
-  <div id="board" class="board"><p class="empty">Cargando tareas…</p></div>
-</main>
+<div class="layout">
+  <nav class="sidebar" id="sidebar"></nav>
+  <main>
+    <div id="board"><p class="empty">Cargando tareas…</p></div>
+  </main>
+</div>
 
 <footer>Actualiza automáticamente cada 60s · Kitchen Center</footer>
 
@@ -164,11 +210,22 @@
     }
   }
 
+  let mundoActivo = null; // null = aún no elegido, se autoselecciona el primero
+  let ultimaData = [];
+
   function hoy(){ const d = new Date(); d.setHours(0,0,0,0); return d; }
 
   function estaAtrasada(t){
     if(!t.Fecha_Limite || t.Estado === 'Completada') return false;
     return new Date(t.Fecha_Limite) < hoy();
+  }
+
+  function diasTranscurridos(t){
+    if(!t.Fecha_Creacion) return null;
+    const creado = new Date(t.Fecha_Creacion);
+    creado.setHours(0,0,0,0);
+    const ms = hoy() - creado;
+    return Math.max(0, Math.round(ms / 86400000));
   }
 
   async function cargarTareas(){
@@ -177,7 +234,8 @@
       const res = await fetch(API_URL + '?action=list');
       const data = await res.json();
       if(!data.success){ throw new Error(data.error); }
-      render(data.tareas);
+      ultimaData = data.tareas;
+      render(ultimaData);
     }catch(err){
       document.getElementById('board').innerHTML =
         '<p class="empty">No se pudo cargar (revisa la URL del Apps Script). ' + err.message + '</p>';
@@ -202,23 +260,63 @@
     document.getElementById('sum-atrasadas').textContent = atrasadas;
     document.getElementById('sum-completadas').textContent = completadas;
 
-    const board = document.getElementById('board');
-    board.innerHTML = '';
+    const nombresGrupos = Object.keys(grupos).sort();
+    if(mundoActivo === null || !nombresGrupos.includes(mundoActivo)){
+      mundoActivo = nombresGrupos[0] || null;
+    }
 
-    Object.keys(grupos).sort().forEach(g=>{
-      const items = grupos[g].sort((a,b)=> (estaAtrasada(b)?1:0) - (estaAtrasada(a)?1:0));
-      const col = document.createElement('div');
-      col.className = 'grupo-col';
+    renderSidebar(grupos, nombresGrupos);
+    renderMain(grupos, nombresGrupos);
+  }
+
+  function renderSidebar(grupos, nombres){
+    const sidebar = document.getElementById('sidebar');
+    if(nombres.length === 0){
+      sidebar.innerHTML = '<p class="empty" style="padding:16px;">Sin mundos aún</p>';
+      return;
+    }
+    sidebar.innerHTML = nombres.map(g=>{
+      const items = grupos[g];
       const activos = items.filter(t=>t.Estado !== 'Completada').length;
-      col.innerHTML = `<h2>${g} <small>${activos} activas</small></h2>` +
-        (items.length ? items.map(cardHtml).join('') : '<p class="empty">Sin tareas</p>');
-      board.appendChild(col);
-    });
+      const conAtraso = items.some(estaAtrasada);
+      const isActive = g === mundoActivo;
+      return `
+        <div class="nav-item ${isActive?'active':''}" onclick="seleccionarMundo('${g.replace(/'/g,"\\'")}')">
+          <span>${g}</span>
+          <span class="count ${conAtraso?'has-atraso':''}">${activos}</span>
+        </div>`;
+    }).join('');
+  }
+
+  function seleccionarMundo(g){
+    mundoActivo = g;
+    render(ultimaData);
+  }
+
+  function renderMain(grupos, nombres){
+    const board = document.getElementById('board');
+    if(nombres.length === 0){
+      board.innerHTML = '<p class="empty">Aún no llegan tareas.</p>';
+      return;
+    }
+    const items = (grupos[mundoActivo] || []).sort((a,b)=> (estaAtrasada(b)?1:0) - (estaAtrasada(a)?1:0));
+    const activos = items.filter(t=>t.Estado !== 'Completada').length;
+
+    board.innerHTML = `
+      <div class="mundo-header">
+        <h2>${mundoActivo}</h2>
+        <span class="mundo-sub">${activos} activas · ${items.length} en total</span>
+      </div>
+      <div class="cards-list">
+        ${items.length ? items.map(cardHtml).join('') : '<p class="empty">Sin tareas en este mundo</p>'}
+      </div>`;
   }
 
   function cardHtml(t){
     const atrasada = estaAtrasada(t);
     const fecha = t.Fecha_Limite ? new Date(t.Fecha_Limite).toLocaleDateString('es-CL') : '';
+    const dias = diasTranscurridos(t);
+    const diasAlerta = dias !== null && dias >= 5 && t.Estado !== 'Completada'; // umbral provisorio, se afina con categorías de alerta
     return `
       <div class="tarea-card prio-${t.Prioridad}${atrasada ? ' atrasada' : ''}">
         <div class="top-row">
@@ -226,7 +324,8 @@
           <span class="badge ${t.Prioridad}">${t.Prioridad}</span>
         </div>
         <div class="meta">
-          <span>${fecha ? '📅 ' + fecha : 'sin fecha'}</span>
+          ${dias !== null ? `<span class="dias-tag${diasAlerta?' dias-alerta':''}">${dias === 0 ? 'Creada hoy' : dias + ' día' + (dias===1?'':'s') + ' desde creación'}</span>` : ''}
+          <span>${fecha ? '📅 vence ' + fecha : 'sin fecha límite'}</span>
           <span class="${atrasada ? 'atraso-tag' : ''}">${atrasada ? 'ATRASADA' : t.Estado}</span>
         </div>
         <select class="estado-select" onchange="actualizarEstado('${t.ID}', this.value)">
