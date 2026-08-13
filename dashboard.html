@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KC · Tareas por Mundo</title>
+<style>
+  :root{
+    --charcoal:#1E1E1E;
+    --cream:#F2F1EC;
+    --gold:#C9A227;
+    --green:#4A7C59;
+    --red:#B23A3A;
+    --orange:#C97B27;
+    --gray:#8A8A82;
+    --card:#ffffff;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Helvetica Neue', Arial, sans-serif;
+    background:var(--cream);
+    color:var(--charcoal);
+  }
+  header{
+    background:var(--charcoal);
+    color:var(--cream);
+    padding:20px 28px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+  header h1{
+    margin:0;
+    font-size:20px;
+    letter-spacing:0.5px;
+    font-weight:600;
+  }
+  header h1 span{ color:var(--gold); }
+  .summary{ display:flex; gap:18px; font-size:13px; }
+  .summary b{ display:block; font-size:20px; }
+  .summary .pill{ text-align:center; }
+
+  #config{
+    background:#fff8e6;
+    border-bottom:1px solid #e6d9a8;
+    padding:10px 28px;
+    font-size:13px;
+    display:none;
+  }
+  #config input{
+    padding:6px 8px; border:1px solid #ccc; border-radius:4px; width:340px; font-size:13px;
+  }
+  #config button{
+    padding:6px 14px; background:var(--charcoal); color:#fff; border:none; border-radius:4px; cursor:pointer;
+  }
+
+  main{ padding:24px 28px; }
+
+  .board{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));
+    gap:18px;
+  }
+
+  .grupo-col{
+    background:var(--card);
+    border-radius:10px;
+    padding:14px;
+    box-shadow:0 1px 3px rgba(0,0,0,0.08);
+  }
+  .grupo-col h2{
+    font-size:14px;
+    text-transform:uppercase;
+    letter-spacing:0.5px;
+    margin:0 0 12px 0;
+    padding-bottom:8px;
+    border-bottom:2px solid var(--gold);
+    display:flex;
+    justify-content:space-between;
+  }
+  .grupo-col h2 small{ color:var(--gray); font-weight:400; text-transform:none; }
+
+  .tarea-card{
+    border:1px solid #e8e6dd;
+    border-left:4px solid var(--gray);
+    border-radius:6px;
+    padding:10px 12px;
+    margin-bottom:10px;
+    font-size:13px;
+    background:#fff;
+  }
+  .tarea-card.prio-Urgente{ border-left-color:var(--red); }
+  .tarea-card.prio-Alta{ border-left-color:var(--orange); }
+  .tarea-card.prio-Media{ border-left-color:var(--gold); }
+  .tarea-card.prio-Baja{ border-left-color:var(--green); }
+  .tarea-card.atrasada{ background:#fdeeee; }
+
+  .tarea-card .top-row{
+    display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:6px;
+  }
+  .tarea-card .titulo{ font-weight:600; line-height:1.3; }
+  .badge{
+    font-size:10px; padding:2px 7px; border-radius:20px; color:#fff; white-space:nowrap; font-weight:600;
+  }
+  .badge.Urgente{ background:var(--red); }
+  .badge.Alta{ background:var(--orange); }
+  .badge.Media{ background:var(--gold); }
+  .badge.Baja{ background:var(--green); }
+
+  .meta{ display:flex; justify-content:space-between; font-size:11px; color:var(--gray); margin-top:6px; }
+  .meta .atraso-tag{ color:var(--red); font-weight:700; }
+
+  select.estado-select{
+    margin-top:8px; width:100%; font-size:12px; padding:4px; border-radius:4px; border:1px solid #ddd;
+  }
+
+  .empty{ color:var(--gray); font-size:12px; font-style:italic; }
+  footer{ text-align:center; padding:14px; font-size:11px; color:var(--gray); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>KC · Tareas por <span>Mundo</span></h1>
+  <div class="summary">
+    <div class="pill"><b id="sum-total">0</b>Total</div>
+    <div class="pill"><b id="sum-pendientes">0</b>Pendientes</div>
+    <div class="pill"><b id="sum-atrasadas" style="color:#ffb3b3">0</b>Atrasadas</div>
+    <div class="pill"><b id="sum-completadas">0</b>Completadas</div>
+  </div>
+</header>
+
+<div id="config">
+  URL del Apps Script (doGet):
+  <input id="apiUrlInput" placeholder="https://script.google.com/macros/s/AKfycb.../exec">
+  <button onclick="guardarUrl()">Guardar</button>
+</div>
+
+<main>
+  <div id="board" class="board"><p class="empty">Cargando tareas…</p></div>
+</main>
+
+<footer>Actualiza automáticamente cada 60s · Kitchen Center</footer>
+
+<script>
+  let API_URL = localStorage.getItem('kc_tareas_api_url') || '';
+
+  if(!API_URL){
+    document.getElementById('config').style.display = 'flex';
+    document.getElementById('config').style.gap = '10px';
+    document.getElementById('config').style.alignItems = 'center';
+  }
+
+  function guardarUrl(){
+    const val = document.getElementById('apiUrlInput').value.trim();
+    if(val){
+      localStorage.setItem('kc_tareas_api_url', val);
+      API_URL = val;
+      document.getElementById('config').style.display = 'none';
+      cargarTareas();
+    }
+  }
+
+  function hoy(){ const d = new Date(); d.setHours(0,0,0,0); return d; }
+
+  function estaAtrasada(t){
+    if(!t.Fecha_Limite || t.Estado === 'Completada') return false;
+    return new Date(t.Fecha_Limite) < hoy();
+  }
+
+  async function cargarTareas(){
+    if(!API_URL) return;
+    try{
+      const res = await fetch(API_URL + '?action=list');
+      const data = await res.json();
+      if(!data.success){ throw new Error(data.error); }
+      render(data.tareas);
+    }catch(err){
+      document.getElementById('board').innerHTML =
+        '<p class="empty">No se pudo cargar (revisa la URL del Apps Script). ' + err.message + '</p>';
+    }
+  }
+
+  function render(tareas){
+    const grupos = {};
+    let pendientes=0, atrasadas=0, completadas=0;
+
+    tareas.forEach(t=>{
+      const g = t.Grupo || 'Sin grupo';
+      if(!grupos[g]) grupos[g] = [];
+      grupos[g].push(t);
+      if(t.Estado === 'Completada') completadas++;
+      else pendientes++;
+      if(estaAtrasada(t)) atrasadas++;
+    });
+
+    document.getElementById('sum-total').textContent = tareas.length;
+    document.getElementById('sum-pendientes').textContent = pendientes;
+    document.getElementById('sum-atrasadas').textContent = atrasadas;
+    document.getElementById('sum-completadas').textContent = completadas;
+
+    const board = document.getElementById('board');
+    board.innerHTML = '';
+
+    Object.keys(grupos).sort().forEach(g=>{
+      const items = grupos[g].sort((a,b)=> (estaAtrasada(b)?1:0) - (estaAtrasada(a)?1:0));
+      const col = document.createElement('div');
+      col.className = 'grupo-col';
+      const activos = items.filter(t=>t.Estado !== 'Completada').length;
+      col.innerHTML = `<h2>${g} <small>${activos} activas</small></h2>` +
+        (items.length ? items.map(cardHtml).join('') : '<p class="empty">Sin tareas</p>');
+      board.appendChild(col);
+    });
+  }
+
+  function cardHtml(t){
+    const atrasada = estaAtrasada(t);
+    const fecha = t.Fecha_Limite ? new Date(t.Fecha_Limite).toLocaleDateString('es-CL') : '';
+    return `
+      <div class="tarea-card prio-${t.Prioridad}${atrasada ? ' atrasada' : ''}">
+        <div class="top-row">
+          <div class="titulo">${t.Tarea}</div>
+          <span class="badge ${t.Prioridad}">${t.Prioridad}</span>
+        </div>
+        <div class="meta">
+          <span>${fecha ? '📅 ' + fecha : 'sin fecha'}</span>
+          <span class="${atrasada ? 'atraso-tag' : ''}">${atrasada ? 'ATRASADA' : t.Estado}</span>
+        </div>
+        <select class="estado-select" onchange="actualizarEstado('${t.ID}', this.value)">
+          <option value="Pendiente" ${t.Estado==='Pendiente'?'selected':''}>Pendiente</option>
+          <option value="En curso" ${t.Estado==='En curso'?'selected':''}>En curso</option>
+          <option value="Completada" ${t.Estado==='Completada'?'selected':''}>Completada</option>
+        </select>
+      </div>`;
+  }
+
+  async function actualizarEstado(id, estado){
+    await fetch(`${API_URL}?action=update&id=${id}&estado=${encodeURIComponent(estado)}`);
+    cargarTareas();
+  }
+
+  cargarTareas();
+  setInterval(cargarTareas, 60000);
+</script>
+
+</body>
+</html>
