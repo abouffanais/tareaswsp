@@ -159,6 +159,7 @@
   select.estado-select{
     margin-top:10px; width:180px; font-size:12px; padding:5px; border-radius:4px; border:1px solid #ddd;
   }
+  .selects-row{ display:flex; gap:8px; flex-wrap:wrap; }
 
   .empty{ color:var(--gray); font-size:12px; font-style:italic; }
   footer{ text-align:center; padding:8px; font-size:11px; color:var(--gray); flex-shrink:0; background:var(--cream); }
@@ -308,15 +309,18 @@
         <span class="mundo-sub">${activos} activas · ${items.length} en total</span>
       </div>
       <div class="cards-list">
-        ${items.length ? items.map(cardHtml).join('') : '<p class="empty">Sin tareas en este mundo</p>'}
+        ${items.length ? items.map(t => cardHtml(t, nombres)).join('') : '<p class="empty">Sin tareas en este mundo</p>'}
       </div>`;
   }
 
-  function cardHtml(t){
+  function cardHtml(t, nombresGrupos){
     const atrasada = estaAtrasada(t);
     const fecha = t.Fecha_Limite ? new Date(t.Fecha_Limite).toLocaleDateString('es-CL') : '';
     const dias = diasTranscurridos(t);
     const diasAlerta = dias !== null && dias >= 5 && t.Estado !== 'Completada'; // umbral provisorio, se afina con categorías de alerta
+    const opcionesGrupo = nombresGrupos.map(g =>
+      `<option value="${g}" ${g===t.Grupo?'selected':''}>${g}</option>`
+    ).join('');
     return `
       <div class="tarea-card prio-${t.Prioridad}${atrasada ? ' atrasada' : ''}">
         <div class="top-row">
@@ -328,12 +332,39 @@
           <span>${fecha ? '📅 vence ' + fecha : 'sin fecha límite'}</span>
           <span class="${atrasada ? 'atraso-tag' : ''}">${atrasada ? 'ATRASADA' : t.Estado}</span>
         </div>
-        <select class="estado-select" onchange="actualizarEstado('${t.ID}', this.value)">
-          <option value="Pendiente" ${t.Estado==='Pendiente'?'selected':''}>Pendiente</option>
-          <option value="En curso" ${t.Estado==='En curso'?'selected':''}>En curso</option>
-          <option value="Completada" ${t.Estado==='Completada'?'selected':''}>Completada</option>
-        </select>
+        <div class="selects-row">
+          <select class="estado-select" onchange="actualizarEstado('${t.ID}', this.value)">
+            <option value="Pendiente" ${t.Estado==='Pendiente'?'selected':''}>Pendiente</option>
+            <option value="En curso" ${t.Estado==='En curso'?'selected':''}>En curso</option>
+            <option value="Completada" ${t.Estado==='Completada'?'selected':''}>Completada</option>
+          </select>
+          <select class="estado-select" onchange="cambiarGrupoSelect('${t.ID}', this)">
+            ${opcionesGrupo}
+            <option value="__nuevo__">+ Nuevo mundo…</option>
+          </select>
+        </div>
       </div>`;
+  }
+
+  function cambiarGrupoSelect(id, selectEl){
+    const valor = selectEl.value;
+    if(valor === '__nuevo__'){
+      const nuevo = prompt('Nombre del nuevo mundo:');
+      if(!nuevo || !nuevo.trim()){
+        selectEl.value = ''; // se recalcula al re-renderizar
+        render(ultimaData);
+        return;
+      }
+      actualizarGrupo(id, nuevo.trim());
+    } else {
+      actualizarGrupo(id, valor);
+    }
+  }
+
+  async function actualizarGrupo(id, grupo){
+    await fetch(`${API_URL}?action=update&id=${id}&grupo=${encodeURIComponent(grupo)}`);
+    mundoActivo = grupo; // saltar a ver el mundo destino
+    cargarTareas();
   }
 
   async function actualizarEstado(id, estado){
