@@ -85,6 +85,8 @@ function tryFixedFormat(text) {
 
 /** Texto libre interpretado por Claude */
 async function parseWithClaude(text) {
+  const hoyISO = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Santiago' }); // YYYY-MM-DD
+
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -96,9 +98,11 @@ async function parseWithClaude(text) {
       model: "claude-sonnet-4-6",
       max_tokens: 300,
       system:
+        `Hoy es ${hoyISO} (zona horaria America/Santiago, Chile). ` +
         "Extrae de un mensaje de WhatsApp una tarea de gestión financiera/corporativa. " +
         "Responde SOLO con un JSON válido, sin texto adicional, con este formato exacto: " +
         `{"tarea": "...", "grupo": "...", "prioridad": "Baja|Media|Alta|Urgente", "fecha_limite": "YYYY-MM-DD o vacío"}. ` +
+        "Calcula cualquier fecha relativa (mañana, el viernes, en 3 días, etc.) tomando como referencia la fecha de hoy indicada arriba. " +
         "Si no se menciona un grupo/empresa/mundo, usa 'Sin grupo'. Si no se menciona prioridad, usa 'Media'.",
       messages: [{ role: "user", content: text }]
     })
