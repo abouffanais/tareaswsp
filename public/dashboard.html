@@ -100,6 +100,10 @@
   }
   nav.sidebar .nav-item.active .count{ background:var(--gold); color:var(--charcoal); }
   nav.sidebar .nav-item .count.has-atraso{ background:var(--red); color:#fff; }
+  nav.sidebar .nav-section-label{
+    padding:14px 20px 6px; font-size:10px; letter-spacing:0.8px; text-transform:uppercase; color:var(--gray); font-weight:700;
+  }
+  nav.sidebar .nav-divider{ border-top:1px solid #e8e6dd; margin:6px 0; }
 
   main{
     flex:1;
@@ -160,6 +164,37 @@
     margin-top:10px; width:180px; font-size:12px; padding:5px; border-radius:4px; border:1px solid #ddd;
   }
   .selects-row{ display:flex; gap:8px; flex-wrap:wrap; }
+
+  .usuarios-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(240px, 1fr));
+    gap:16px;
+    max-width:1100px;
+  }
+  .usuario-card{
+    background:#fff;
+    border:1px solid #e8e6dd;
+    border-radius:10px;
+    padding:16px;
+  }
+  .usuario-card .usuario-top{
+    display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px;
+  }
+  .usuario-card .usuario-nombre{ font-weight:700; font-size:14px; }
+  .usuario-card .usuario-total{ font-size:11px; color:var(--gray); }
+  .usuario-subgrid{
+    display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin-bottom:10px;
+  }
+  .usuario-sub{
+    background:#f7f6f0; border-radius:6px; padding:8px 6px; text-align:center;
+  }
+  .usuario-sub b{ display:block; font-size:17px; }
+  .usuario-sub span{ font-size:10px; color:var(--gray); text-transform:uppercase; letter-spacing:0.3px; }
+  .usuario-atraso{
+    font-size:11px; font-weight:700; text-align:center; padding:4px; border-radius:6px;
+  }
+  .usuario-atraso.si{ background:#f7dede; color:var(--red); }
+  .usuario-atraso.no{ background:#eaf2ec; color:var(--green); }
 
   .empty{ color:var(--gray); font-size:12px; font-style:italic; }
   footer{ text-align:center; padding:8px; font-size:11px; color:var(--gray); flex-shrink:0; background:var(--cream); }
@@ -262,7 +297,9 @@
     document.getElementById('sum-completadas').textContent = completadas;
 
     const nombresGrupos = Object.keys(grupos).sort();
-    if(mundoActivo === null || !nombresGrupos.includes(mundoActivo)){
+    if(mundoActivo === null){
+      mundoActivo = nombresGrupos[0] || null;
+    } else if(mundoActivo !== '__usuarios__' && !nombresGrupos.includes(mundoActivo)){
       mundoActivo = nombresGrupos[0] || null;
     }
 
@@ -272,21 +309,32 @@
 
   function renderSidebar(grupos, nombres){
     const sidebar = document.getElementById('sidebar');
+    const usuariosActivo = mundoActivo === '__usuarios__';
+
+    let html = `
+      <div class="nav-item ${usuariosActivo?'active':''}" onclick="seleccionarMundo('__usuarios__')">
+        <span>👤 Usuarios</span>
+      </div>
+      <div class="nav-divider"></div>
+      <div class="nav-section-label">Mundos</div>`;
+
     if(nombres.length === 0){
-      sidebar.innerHTML = '<p class="empty" style="padding:16px;">Sin mundos aún</p>';
-      return;
+      html += '<p class="empty" style="padding:0 20px;">Sin mundos aún</p>';
+    } else {
+      html += nombres.map(g=>{
+        const items = grupos[g];
+        const activos = items.filter(t=>t.Estado !== 'Completada').length;
+        const conAtraso = items.some(estaAtrasada);
+        const isActive = g === mundoActivo;
+        return `
+          <div class="nav-item ${isActive?'active':''}" onclick="seleccionarMundo('${g.replace(/'/g,"\\'")}')">
+            <span>${g}</span>
+            <span class="count ${conAtraso?'has-atraso':''}">${activos}</span>
+          </div>`;
+      }).join('');
     }
-    sidebar.innerHTML = nombres.map(g=>{
-      const items = grupos[g];
-      const activos = items.filter(t=>t.Estado !== 'Completada').length;
-      const conAtraso = items.some(estaAtrasada);
-      const isActive = g === mundoActivo;
-      return `
-        <div class="nav-item ${isActive?'active':''}" onclick="seleccionarMundo('${g.replace(/'/g,"\\'")}')">
-          <span>${g}</span>
-          <span class="count ${conAtraso?'has-atraso':''}">${activos}</span>
-        </div>`;
-    }).join('');
+
+    sidebar.innerHTML = html;
   }
 
   function seleccionarMundo(g){
@@ -296,6 +344,12 @@
 
   function renderMain(grupos, nombres){
     const board = document.getElementById('board');
+
+    if(mundoActivo === '__usuarios__'){
+      renderUsuarios(board);
+      return;
+    }
+
     if(nombres.length === 0){
       board.innerHTML = '<p class="empty">Aún no llegan tareas.</p>';
       return;
@@ -313,6 +367,54 @@
       </div>`;
   }
 
+  function renderUsuarios(board){
+    const porResponsable = {};
+    ultimaData.forEach(t=>{
+      const r = t.Responsable && t.Responsable.trim() ? t.Responsable.trim() : 'Sin responsable';
+      if(!porResponsable[r]) porResponsable[r] = [];
+      porResponsable[r].push(t);
+    });
+
+    const nombres = Object.keys(porResponsable).sort();
+
+    if(nombres.length === 0){
+      board.innerHTML = `
+        <div class="mundo-header"><h2>Usuarios</h2></div>
+        <p class="empty">Aún no hay tareas con un responsable asignado.</p>`;
+      return;
+    }
+
+    const cards = nombres.map(nombre=>{
+      const items = porResponsable[nombre];
+      const pendientes = items.filter(t=>t.Estado === 'Pendiente').length;
+      const enCurso = items.filter(t=>t.Estado === 'En curso').length;
+      const completadas = items.filter(t=>t.Estado === 'Completada').length;
+      const atrasadas = items.filter(estaAtrasada).length;
+      return `
+        <div class="usuario-card">
+          <div class="usuario-top">
+            <span class="usuario-nombre">${nombre}</span>
+            <span class="usuario-total">${items.length} tarea${items.length===1?'':'s'}</span>
+          </div>
+          <div class="usuario-subgrid">
+            <div class="usuario-sub"><b>${pendientes}</b><span>Pendiente</span></div>
+            <div class="usuario-sub"><b>${enCurso}</b><span>En curso</span></div>
+            <div class="usuario-sub"><b>${completadas}</b><span>Completada</span></div>
+          </div>
+          <div class="usuario-atraso ${atrasadas>0?'si':'no'}">
+            ${atrasadas>0 ? `⚠️ ${atrasadas} atrasada${atrasadas===1?'':'s'}` : '✓ Sin atrasos'}
+          </div>
+        </div>`;
+    }).join('');
+
+    board.innerHTML = `
+      <div class="mundo-header">
+        <h2>Usuarios</h2>
+        <span class="mundo-sub">${nombres.length} responsable${nombres.length===1?'':'s'}</span>
+      </div>
+      <div class="usuarios-grid">${cards}</div>`;
+  }
+
   function cardHtml(t, nombresGrupos){
     const atrasada = estaAtrasada(t);
     const fecha = t.Fecha_Limite ? new Date(t.Fecha_Limite).toLocaleDateString('es-CL') : '';
@@ -320,6 +422,10 @@
     const diasAlerta = dias !== null && dias >= 5 && t.Estado !== 'Completada'; // umbral provisorio, se afina con categorías de alerta
     const opcionesGrupo = nombresGrupos.map(g =>
       `<option value="${g}" ${g===t.Grupo?'selected':''}>${g}</option>`
+    ).join('');
+    const responsablesConocidos = [...new Set(ultimaData.map(x => (x.Responsable||'').trim()).filter(Boolean))].sort();
+    const opcionesResponsable = responsablesConocidos.map(r =>
+      `<option value="${r}" ${r===(t.Responsable||'').trim()?'selected':''}>${r}</option>`
     ).join('');
     return `
       <div class="tarea-card prio-${t.Prioridad}${atrasada ? ' atrasada' : ''}">
@@ -342,8 +448,32 @@
             ${opcionesGrupo}
             <option value="__nuevo__">+ Nuevo mundo…</option>
           </select>
+          <select class="estado-select" onchange="cambiarResponsableSelect('${t.ID}', this)">
+            <option value="" ${!((t.Responsable||'').trim())?'selected':''}>Sin responsable</option>
+            ${opcionesResponsable}
+            <option value="__nuevo__">+ Nuevo responsable…</option>
+          </select>
         </div>
       </div>`;
+  }
+
+  function cambiarResponsableSelect(id, selectEl){
+    const valor = selectEl.value;
+    if(valor === '__nuevo__'){
+      const nuevo = prompt('Nombre del responsable:');
+      if(!nuevo || !nuevo.trim()){
+        render(ultimaData);
+        return;
+      }
+      actualizarResponsable(id, nuevo.trim());
+    } else {
+      actualizarResponsable(id, valor);
+    }
+  }
+
+  async function actualizarResponsable(id, responsable){
+    await fetch(`${API_URL}?action=update&id=${id}&responsable=${encodeURIComponent(responsable)}`);
+    cargarTareas();
   }
 
   function cambiarGrupoSelect(id, selectEl){
