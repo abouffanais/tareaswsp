@@ -196,6 +196,48 @@
   .usuario-atraso.si{ background:#f7dede; color:var(--red); }
   .usuario-atraso.no{ background:#eaf2ec; color:var(--green); }
 
+  .legend{
+    display:flex; gap:20px; margin-bottom:16px; font-size:12.5px; font-weight:600; flex-wrap:wrap;
+  }
+  .legend .leg-item{ display:flex; align-items:center; gap:6px; }
+  .legend .dot{ width:11px; height:11px; border-radius:50%; display:inline-block; }
+  .legend .dot.rojo{ background:var(--red); }
+  .legend .dot.amarillo{ background:#D9A926; }
+  .legend .dot.verde{ background:var(--green); }
+
+  .field{
+    position:relative;
+    width:100%;
+    max-width:1100px;
+    height:440px;
+    border-radius:14px;
+    overflow:hidden;
+    background:linear-gradient(180deg, #cfe8c9 0%, #a9d69f 55%, #8fc684 100%);
+    border:1px solid #cfe0c8;
+  }
+  .field::before{
+    content:'';
+    position:absolute; inset:0;
+    background-image:
+      radial-gradient(circle, rgba(255,255,255,0.25) 1px, transparent 1px);
+    background-size:26px 26px;
+    opacity:0.4;
+  }
+  .sheep{
+    position:absolute;
+    animation: wander var(--dur,6s) ease-in-out infinite alternate;
+    animation-delay: var(--delay,0s);
+    filter: drop-shadow(0 3px 2px rgba(0,0,0,0.15));
+  }
+  .sheep svg{ display:block; }
+  @keyframes wander{
+    0%{ transform: translate(0,0) scaleX(1); }
+    48%{ transform: translate(var(--dx,24px), -6px) scaleX(1); }
+    50%{ transform: translate(var(--dx,24px), -6px) scaleX(-1); }
+    98%{ transform: translate(0,0) scaleX(-1); }
+    100%{ transform: translate(0,0) scaleX(1); }
+  }
+
   .empty{ color:var(--gray); font-size:12px; font-style:italic; }
   footer{ text-align:center; padding:8px; font-size:11px; color:var(--gray); flex-shrink:0; background:var(--cream); }
 </style>
@@ -298,9 +340,9 @@
 
     const nombresGrupos = Object.keys(grupos).sort();
     if(mundoActivo === null){
-      mundoActivo = nombresGrupos[0] || null;
-    } else if(mundoActivo !== '__usuarios__' && !nombresGrupos.includes(mundoActivo)){
-      mundoActivo = nombresGrupos[0] || null;
+      mundoActivo = '__rebano__';
+    } else if(mundoActivo !== '__usuarios__' && mundoActivo !== '__rebano__' && !nombresGrupos.includes(mundoActivo)){
+      mundoActivo = nombresGrupos[0] || '__rebano__';
     }
 
     renderSidebar(grupos, nombresGrupos);
@@ -310,8 +352,12 @@
   function renderSidebar(grupos, nombres){
     const sidebar = document.getElementById('sidebar');
     const usuariosActivo = mundoActivo === '__usuarios__';
+    const rebanoActivo = mundoActivo === '__rebano__';
 
     let html = `
+      <div class="nav-item ${rebanoActivo?'active':''}" onclick="seleccionarMundo('__rebano__')">
+        <span>🐑 Rebaño</span>
+      </div>
       <div class="nav-item ${usuariosActivo?'active':''}" onclick="seleccionarMundo('__usuarios__')">
         <span>👤 Usuarios</span>
       </div>
@@ -345,6 +391,11 @@
   function renderMain(grupos, nombres){
     const board = document.getElementById('board');
 
+    if(mundoActivo === '__rebano__'){
+      renderRebano(board);
+      return;
+    }
+
     if(mundoActivo === '__usuarios__'){
       renderUsuarios(board);
       return;
@@ -365,6 +416,58 @@
       <div class="cards-list">
         ${items.length ? items.map(t => cardHtml(t, nombres)).join('') : '<p class="empty">Sin tareas en este mundo</p>'}
       </div>`;
+  }
+
+  function sheepSvg(color){
+    return `
+      <svg viewBox="0 0 60 42" width="48" height="34">
+        <rect x="9" y="30" width="3" height="9" fill="#3a3a3a"/>
+        <rect x="19" y="32" width="3" height="9" fill="#3a3a3a"/>
+        <rect x="36" y="32" width="3" height="9" fill="#3a3a3a"/>
+        <rect x="46" y="30" width="3" height="9" fill="#3a3a3a"/>
+        <ellipse cx="31" cy="21" rx="21" ry="14" fill="${color}" stroke="#3a3a3a" stroke-width="1.4"/>
+        <circle cx="11" cy="15" r="8" fill="#3a3a3a"/>
+        <circle cx="8" cy="13" r="1.4" fill="#fff"/>
+        <ellipse cx="4" cy="10" rx="2.6" ry="4" fill="#3a3a3a"/>
+      </svg>`;
+  }
+
+  function renderRebano(board){
+    const rojo = '#B23A3A', amarillo = '#D9A926', verde = '#4A7C59';
+    let nRojo=0, nAmarillo=0, nVerde=0;
+    const colores = ultimaData.map(t=>{
+      if(estaAtrasada(t)){ nRojo++; return rojo; }
+      if(t.Estado === 'Completada'){ nVerde++; return verde; }
+      nAmarillo++; return amarillo;
+    });
+
+    if(colores.length === 0){
+      board.innerHTML = `
+        <div class="mundo-header"><h2>Rebaño de tareas</h2></div>
+        <p class="empty">Aún no hay tareas registradas.</p>`;
+      return;
+    }
+
+    const ovejas = colores.map((color, i)=>{
+      const top = 8 + Math.random() * 74;      // % dentro del corral
+      const left = 4 + Math.random() * 88;
+      const dur = (4 + Math.random() * 5).toFixed(1);
+      const delay = (Math.random() * 4).toFixed(1);
+      const dx = (14 + Math.random() * 26).toFixed(0);
+      return `<div class="sheep" style="top:${top}%; left:${left}%; --dur:${dur}s; --delay:${delay}s; --dx:${dx}px;">${sheepSvg(color)}</div>`;
+    }).join('');
+
+    board.innerHTML = `
+      <div class="mundo-header">
+        <h2>Rebaño de tareas</h2>
+        <span class="mundo-sub">${colores.length} en total</span>
+      </div>
+      <div class="legend">
+        <span class="leg-item"><span class="dot rojo"></span>Atrasadas: ${nRojo}</span>
+        <span class="leg-item"><span class="dot amarillo"></span>Pendientes / en curso: ${nAmarillo}</span>
+        <span class="leg-item"><span class="dot verde"></span>Completadas: ${nVerde}</span>
+      </div>
+      <div class="field">${ovejas}</div>`;
   }
 
   function renderUsuarios(board){
