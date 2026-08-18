@@ -46,6 +46,7 @@ export default async function handler(req, res) {
         tarea: parsed.tarea,
         grupo: parsed.grupo || "Sin grupo",
         prioridad: parsed.prioridad || "Media",
+        responsable: parsed.responsable || "",
         fecha_limite: parsed.fecha_limite || "",
         telefono: from
       })
@@ -62,6 +63,7 @@ export default async function handler(req, res) {
       `📌 ${parsed.tarea}\n` +
       `🌍 ${parsed.grupo || "Sin grupo"}\n` +
       `⚡ Prioridad: ${parsed.prioridad || "Media"}` +
+      (parsed.responsable ? `\n👤 Con: ${parsed.responsable}` : "") +
       (parsed.fecha_limite ? `\n📅 Vence: ${parsed.fecha_limite}` : "")
     );
   } catch (err) {
@@ -70,7 +72,7 @@ export default async function handler(req, res) {
   }
 }
 
-/** Formato fijo: "Tarea / Grupo / Prioridad / Fecha opcional (yyyy-mm-dd)" */
+/** Formato fijo: "Tarea / Grupo / Prioridad / Responsable(opcional) / Fecha opcional (yyyy-mm-dd)" */
 function tryFixedFormat(text) {
   const parts = text.split("/").map(p => p.trim()).filter(Boolean);
   if (parts.length < 2) return null;
@@ -79,7 +81,8 @@ function tryFixedFormat(text) {
     tarea: parts[0],
     grupo: parts[1],
     prioridad: parts[2] || "Media",
-    fecha_limite: parts[3] || ""
+    responsable: parts[3] || "",
+    fecha_limite: parts[4] || ""
   };
 }
 
@@ -101,8 +104,9 @@ async function parseWithClaude(text) {
         `Hoy es ${hoyISO} (zona horaria America/Santiago, Chile). ` +
         "Extrae de un mensaje de WhatsApp una tarea de gestión financiera/corporativa. " +
         "Responde SOLO con un JSON válido, sin texto adicional, con este formato exacto: " +
-        `{"tarea": "...", "grupo": "...", "prioridad": "Baja|Media|Alta|Urgente", "fecha_limite": "YYYY-MM-DD o vacío"}. ` +
+        `{"tarea": "...", "grupo": "...", "prioridad": "Baja|Media|Alta|Urgente", "responsable": "...", "fecha_limite": "YYYY-MM-DD o vacío"}. ` +
         "Calcula cualquier fecha relativa (mañana, el viernes, en 3 días, etc.) tomando como referencia la fecha de hoy indicada arriba. " +
+        "El campo 'responsable' es la persona con quien hay que ver o coordinar la tarea (ej: 'con Rodrigo', 'hablar con Pamela'); si no se menciona a nadie, usa cadena vacía. " +
         "Si no se menciona un grupo/empresa/mundo, usa 'Sin grupo'. Si no se menciona prioridad, usa 'Media'.",
       messages: [{ role: "user", content: text }]
     })
