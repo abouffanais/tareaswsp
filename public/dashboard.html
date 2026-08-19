@@ -209,11 +209,19 @@
     position:relative;
     width:100%;
     max-width:1100px;
-    height:440px;
+    height:280px;
     border-radius:14px;
     overflow:hidden;
     background:linear-gradient(180deg, #cfe8c9 0%, #a9d69f 55%, #8fc684 100%);
     border:1px solid #cfe0c8;
+    margin-bottom:22px;
+  }
+  .field.field-completadas{
+    background:linear-gradient(180deg, #d8ecd2 0%, #b7dcac 55%, #a1cf93 100%);
+  }
+  .field-label{
+    font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; color:var(--gray);
+    margin:0 0 8px 2px;
   }
   .field::before{
     content:'';
@@ -229,6 +237,8 @@
     animation-delay: var(--delay,0s);
     filter: drop-shadow(0 3px 2px rgba(0,0,0,0.15));
   }
+  .sheep.clicable{ cursor:pointer; }
+  .sheep.clicable:hover{ filter: drop-shadow(0 3px 2px rgba(0,0,0,0.15)) brightness(1.15); }
   .sheep svg{ display:block; }
   @keyframes wander{
     0%{ transform: translate(0,0) scaleX(1); }
@@ -236,6 +246,33 @@
     50%{ transform: translate(var(--dx,24px), -6px) scaleX(-1); }
     98%{ transform: translate(0,0) scaleX(-1); }
     100%{ transform: translate(0,0) scaleX(1); }
+  }
+
+  .usuario-card{ cursor:pointer; transition:box-shadow 0.15s, transform 0.15s; }
+  .usuario-card:hover{ box-shadow:0 3px 10px rgba(0,0,0,0.1); transform:translateY(-2px); }
+
+  .usuario-detalle-list{ display:flex; flex-direction:column; gap:8px; max-width:760px; }
+  .usuario-tarea-row{
+    background:#fff; border:1px solid #e8e6dd; border-left:4px solid var(--gray);
+    border-radius:8px; padding:10px 14px; cursor:pointer; font-size:13px;
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+  }
+  .usuario-tarea-row:hover{ background:#f7f6f0; }
+  .usuario-tarea-row .utr-titulo{ font-weight:600; }
+  .usuario-tarea-row .utr-meta{ font-size:11px; color:var(--gray); white-space:nowrap; }
+  .volver-link{
+    display:inline-block; margin-bottom:14px; font-size:12.5px; font-weight:600; color:var(--charcoal);
+    cursor:pointer; text-decoration:underline;
+  }
+
+  .tarea-card.destacada{
+    outline:3px solid var(--gold);
+    animation: pulseHighlight 1.4s ease-in-out 2;
+  }
+  @keyframes pulseHighlight{
+    0%{ box-shadow:0 0 0 0 rgba(201,162,39,0.55); }
+    70%{ box-shadow:0 0 0 14px rgba(201,162,39,0); }
+    100%{ box-shadow:0 0 0 0 rgba(201,162,39,0); }
   }
 
   .empty{ color:var(--gray); font-size:12px; font-style:italic; }
@@ -290,6 +327,8 @@
 
   let mundoActivo = null; // null = aún no elegido, se autoselecciona el primero
   let ultimaData = [];
+  let usuarioSeleccionado = null; // cuando se hace click en una tarjeta de usuario, se ve su detalle
+  let resaltarTareaId = null;     // tarea a resaltar/scrollear tras navegar desde rebaño o usuarios
 
   function hoy(){ const d = new Date(); d.setHours(0,0,0,0); return d; }
 
@@ -416,6 +455,17 @@
       <div class="cards-list">
         ${items.length ? items.map(t => cardHtml(t, nombres)).join('') : '<p class="empty">Sin tareas en este mundo</p>'}
       </div>`;
+
+    if(resaltarTareaId){
+      const idParaResaltar = resaltarTareaId;
+      setTimeout(()=>{
+        const el = document.querySelector(`[data-task-id="${idParaResaltar}"]`);
+        if(el){
+          el.scrollIntoView({ behavior:'smooth', block:'center' });
+        }
+      }, 60);
+      setTimeout(()=>{ resaltarTareaId = null; }, 3200);
+    }
   }
 
   function sheepSvg(color){
@@ -434,40 +484,58 @@
 
   function renderRebano(board){
     const rojo = '#B23A3A', amarillo = '#D9A926', verde = '#4A7C59';
-    let nRojo=0, nAmarillo=0, nVerde=0;
-    const colores = ultimaData.map(t=>{
-      if(estaAtrasada(t)){ nRojo++; return rojo; }
-      if(t.Estado === 'Completada'){ nVerde++; return verde; }
-      nAmarillo++; return amarillo;
+    const activas = [];   // {t, color}
+    const completadas = [];
+
+    ultimaData.forEach(t=>{
+      if(estaAtrasada(t)) activas.push({t, color: rojo});
+      else if(t.Estado === 'Completada') completadas.push({t, color: verde});
+      else activas.push({t, color: amarillo});
     });
 
-    if(colores.length === 0){
+    if(ultimaData.length === 0){
       board.innerHTML = `
         <div class="mundo-header"><h2>Rebaño de tareas</h2></div>
         <p class="empty">Aún no hay tareas registradas.</p>`;
       return;
     }
 
-    const ovejas = colores.map((color, i)=>{
-      const top = 8 + Math.random() * 74;      // % dentro del corral
-      const left = 4 + Math.random() * 88;
-      const dur = (4 + Math.random() * 5).toFixed(1);
-      const delay = (Math.random() * 4).toFixed(1);
-      const dx = (14 + Math.random() * 26).toFixed(0);
-      return `<div class="sheep" style="top:${top}%; left:${left}%; --dur:${dur}s; --delay:${delay}s; --dx:${dx}px;">${sheepSvg(color)}</div>`;
-    }).join('');
+    const nRojo = activas.filter(o=>o.color===rojo).length;
+    const nAmarillo = activas.filter(o=>o.color===amarillo).length;
+
+    function ovejasHtml(lista, clicable){
+      return lista.map(({t, color})=>{
+        const top = 8 + Math.random() * 68;
+        const left = 4 + Math.random() * 88;
+        const dur = (4 + Math.random() * 5).toFixed(1);
+        const delay = (Math.random() * 4).toFixed(1);
+        const dx = (14 + Math.random() * 26).toFixed(0);
+        const clickAttr = clicable ? `onclick="irATarea('${t.ID}','${(t.Grupo||'Sin grupo').replace(/'/g,"\\'")}')"` : '';
+        return `<div class="sheep${clicable?' clicable':''}" title="${t.Tarea.replace(/"/g,'')}" style="top:${top}%; left:${left}%; --dur:${dur}s; --delay:${delay}s; --dx:${dx}px;" ${clickAttr}>${sheepSvg(color)}</div>`;
+      }).join('');
+    }
 
     board.innerHTML = `
       <div class="mundo-header">
         <h2>Rebaño de tareas</h2>
-        <span class="mundo-sub">${colores.length} en total</span>
+        <span class="mundo-sub">${ultimaData.length} en total</span>
       </div>
       <div class="legend">
         <span class="leg-item"><span class="dot rojo"></span>Atrasadas: ${nRojo}</span>
         <span class="leg-item"><span class="dot amarillo"></span>Pendientes / en curso: ${nAmarillo}</span>
-        <span class="leg-item"><span class="dot verde"></span>Completadas: ${nVerde}</span>
+        <span class="leg-item"><span class="dot verde"></span>Completadas: ${completadas.length}</span>
       </div>
-      <div class="field">${ovejas}</div>`;
+      <p class="field-label">Activas (haz clic en una oveja para ir a su tarea)</p>
+      <div class="field">${activas.length ? ovejasHtml(activas, true) : ''}</div>
+      <p class="field-label">Completadas</p>
+      <div class="field field-completadas">${completadas.length ? ovejasHtml(completadas, false) : ''}</div>`;
+  }
+
+  function irATarea(id, grupo){
+    usuarioSeleccionado = null;
+    resaltarTareaId = id;
+    mundoActivo = grupo;
+    render(ultimaData);
   }
 
   function renderUsuarios(board){
@@ -487,6 +555,28 @@
       return;
     }
 
+    // Vista de detalle: tareas de un responsable específico
+    if(usuarioSeleccionado && porResponsable[usuarioSeleccionado]){
+      const items = porResponsable[usuarioSeleccionado].sort((a,b)=> (estaAtrasada(b)?1:0) - (estaAtrasada(a)?1:0));
+      board.innerHTML = `
+        <span class="volver-link" onclick="volverAUsuarios()">← Volver a Usuarios</span>
+        <div class="mundo-header">
+          <h2>${usuarioSeleccionado}</h2>
+          <span class="mundo-sub">${items.length} tarea${items.length===1?'':'s'}</span>
+        </div>
+        <div class="usuario-detalle-list">
+          ${items.map(t=>{
+            const atrasada = estaAtrasada(t);
+            return `
+            <div class="usuario-tarea-row" onclick="irATarea('${t.ID}','${(t.Grupo||'Sin grupo').replace(/'/g,"\\'")}')">
+              <span class="utr-titulo">${t.Tarea}</span>
+              <span class="utr-meta">${t.Grupo || 'Sin grupo'} · ${atrasada ? '⚠️ Atrasada' : t.Estado}</span>
+            </div>`;
+          }).join('')}
+        </div>`;
+      return;
+    }
+
     const cards = nombres.map(nombre=>{
       const items = porResponsable[nombre];
       const pendientes = items.filter(t=>t.Estado === 'Pendiente').length;
@@ -494,7 +584,7 @@
       const completadas = items.filter(t=>t.Estado === 'Completada').length;
       const atrasadas = items.filter(estaAtrasada).length;
       return `
-        <div class="usuario-card">
+        <div class="usuario-card" onclick="verUsuario('${nombre.replace(/'/g,"\\'")}')">
           <div class="usuario-top">
             <span class="usuario-nombre">${nombre}</span>
             <span class="usuario-total">${items.length} tarea${items.length===1?'':'s'}</span>
@@ -518,6 +608,16 @@
       <div class="usuarios-grid">${cards}</div>`;
   }
 
+  function verUsuario(nombre){
+    usuarioSeleccionado = nombre;
+    render(ultimaData);
+  }
+
+  function volverAUsuarios(){
+    usuarioSeleccionado = null;
+    render(ultimaData);
+  }
+
   function cardHtml(t, nombresGrupos){
     const atrasada = estaAtrasada(t);
     const fecha = t.Fecha_Limite ? new Date(t.Fecha_Limite).toLocaleDateString('es-CL') : '';
@@ -531,7 +631,7 @@
       `<option value="${r}" ${r===(t.Responsable||'').trim()?'selected':''}>${r}</option>`
     ).join('');
     return `
-      <div class="tarea-card prio-${t.Prioridad}${atrasada ? ' atrasada' : ''}">
+      <div class="tarea-card prio-${t.Prioridad}${atrasada ? ' atrasada' : ''}${t.ID===resaltarTareaId ? ' destacada' : ''}" data-task-id="${t.ID}">
         <div class="top-row">
           <div class="titulo">${t.Tarea}</div>
           <span class="badge ${t.Prioridad}">${t.Prioridad}</span>
